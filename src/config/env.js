@@ -2,6 +2,22 @@ const dotenv = require('dotenv');
 
 dotenv.config();
 
+function getOptionalNumberEnv(name, fallback) {
+  const value = process.env[name];
+
+  if (value === undefined || value === '') {
+    return fallback;
+  }
+
+  const parsed = Number(value);
+
+  if (!Number.isFinite(parsed)) {
+    throw new Error(`Environment variable ${name} must be a valid number`);
+  }
+
+  return parsed;
+}
+
 function getRequiredEnv(name, missing) {
   const value = process.env[name];
   if (!value) {
@@ -20,6 +36,12 @@ const env = {
   postgresUrl: getRequiredEnv('POSTGRES_URL', missing),
   mongoUri: getRequiredEnv('MONGODB_URI', missing),
   allowedOrigin: process.env.ALLOWED_ORIGIN || '*',
+  reminderLeadTimeMs: getOptionalNumberEnv(
+    'REMINDER_LEAD_TIME_MS',
+    60 * 60 * 1000
+  ),
+  reminderWebhookUrl: process.env.REMINDER_WEBHOOK_URL || '',
+  analyticsWebhookUrl: process.env.ANALYTICS_WEBHOOK_URL || '',
 };
 
 if (missing.length > 0) {

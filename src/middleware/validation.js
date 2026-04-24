@@ -10,11 +10,19 @@ const loginSchema = Joi.object({
   password: Joi.string().required(),
 });
 
+const nameSchema = Joi.string().trim().min(2).max(80).required();
+
 const taskCreateSchema = Joi.object({
   title: Joi.string().trim().min(3).max(150).required(),
   description: Joi.string().trim().allow('').max(2000).optional(),
   dueDate: Joi.date().iso().required(),
   status: Joi.string().valid('pending', 'completed').default('pending'),
+  categoryId: Joi.string().trim().allow(null).optional(),
+  tagIds: Joi.array()
+    .items(Joi.string().trim())
+    .max(25)
+    .unique()
+    .optional(),
 });
 
 const taskUpdateSchema = Joi.object({
@@ -22,7 +30,25 @@ const taskUpdateSchema = Joi.object({
   description: Joi.string().trim().allow('').max(2000),
   dueDate: Joi.date().iso(),
   status: Joi.string().valid('pending', 'completed'),
+  categoryId: Joi.string().trim().allow(null),
+  tagIds: Joi.array().items(Joi.string().trim()).max(25).unique(),
 }).min(1);
+
+const categoryCreateSchema = Joi.object({
+  name: nameSchema,
+});
+
+const categoryUpdateSchema = Joi.object({
+  name: Joi.string().trim().min(2).max(80).required(),
+});
+
+const tagCreateSchema = Joi.object({
+  name: nameSchema,
+});
+
+const tagUpdateSchema = Joi.object({
+  name: Joi.string().trim().min(2).max(80).required(),
+});
 
 function validate(schema) {
   return (req, res, next) => {
@@ -52,4 +78,8 @@ module.exports = {
   loginSchema,
   taskCreateSchema,
   taskUpdateSchema,
+  categoryCreateSchema,
+  categoryUpdateSchema,
+  tagCreateSchema,
+  tagUpdateSchema,
 };

@@ -7,7 +7,9 @@
   "scripts": {
     "start": "node src/server.js",
     "dev": "nodemon src/server.js",
-    "check": "find src -name '*.js' -print0 | xargs -0 -n1 node --check"
+    "check": "find src -name '*.js' -print0 | xargs -0 -n1 node --check",
+    "frontend:dev": "vite --config frontend/vite.config.mjs",
+    "frontend:build": "vite build --config frontend/vite.config.mjs"
   },
   "keywords": [
     "express",
@@ -31,9 +33,13 @@
     "jsonwebtoken": "^9.0.2",
     "mongoose": "^8.8.0",
     "morgan": "^1.10.0",
-    "pg": "^8.13.1"
+    "pg": "^8.13.1",
+    "react": "^19.2.5",
+    "react-dom": "^19.2.5"
   },
   "devDependencies": {
-    "nodemon": "^3.1.4"
+    "@vitejs/plugin-react": "^6.0.1",
+    "nodemon": "^3.1.4",
+    "vite": "^8.0.10"
   }
 }

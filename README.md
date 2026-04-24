@@ -1,77 +1,27 @@
 # Task Management API
 
-A simple backend REST API built for the assignment. It supports user registration, login, JWT-based authentication, and task CRUD for authenticated users.
+This is the Assignment 3 version of the backend task management API. It keeps the implementation simple and only adds the features asked in the PDF:
 
-Users are stored in PostgreSQL, and tasks are stored in MongoDB.
+- categories
+- tags
+- task filtering by category and tags
+- simulated reminders using in-memory `setTimeout`
+- completion webhook with 3 retries and exponential backoff
+- a basic React frontend to demo the API
+
+Users are stored in PostgreSQL. Tasks, categories, and tags are stored in MongoDB.
 
 ## Tech Stack
 
 - Node.js
 - Express
+- React
+- Vite
 - PostgreSQL
 - MongoDB
 - JWT
 - Joi
 - bcryptjs
-
-## Features
-
-- Register a user with email and password
-- Login and receive a JWT token
-- Fetch the current logged-in user
-- Create, view, update, and delete tasks
-- Allow access only to the owner of a task
-- Validate incoming request data
-- Return clean JSON error responses
-
-## Project Structure
-
-```text
-src/
-  app.js
-  server.js
-  config/
-    db.js
-    env.js
-  middleware/
-    auth.js
-    errorHandler.js
-    notFound.js
-    validation.js
-  models/
-    Task.js
-  routes/
-    authRoutes.js
-    index.js
-    taskRoutes.js
-```
-
-## Folder Explanation
-
-- `src/app.js` creates the Express app and mounts middleware and routes.
-- `src/server.js` connects to the databases and starts the server.
-- `src/config/db.js` sets up PostgreSQL and MongoDB connections.
-- `src/config/env.js` reads required environment variables.
-- `src/middleware` contains auth, validation, 404, and error handling logic.
-- `src/models/Task.js` defines the MongoDB task schema.
-- `src/routes/authRoutes.js` contains register, login, and `me` endpoints.
-- `src/routes/taskRoutes.js` contains task CRUD endpoints.
-
-## Design Decisions
-
-- PostgreSQL is used for users because the assignment requires SQL storage for user data.
-- MongoDB is used for tasks because the assignment requires NoSQL storage for task data.
-- Route logic is kept directly inside the route files to keep the project small and easy to read.
-- JWT is used for authentication so protected endpoints can identify the logged-in user.
-- Each task stores an `ownerId`, and every task read/update/delete checks ownership.
-
-## Prerequisites
-
-- Node.js 20 or higher
-- PostgreSQL running locally
-- MongoDB running locally
-
-Using Docker is the easiest way to run both databases.
 
 ## Setup
 
@@ -81,39 +31,54 @@ Using Docker is the easiest way to run both databases.
 npm install
 ```
 
-2. Create the environment file:
+2. Create `.env`:
 
 ```bash
 cp .env.example .env
 ```
 
-3. Start PostgreSQL and MongoDB:
+3. Update the database connection strings and secrets in `.env`.
+
+4. Start PostgreSQL and MongoDB.
+
+5. Build the frontend if you change anything inside `frontend/`:
 
 ```bash
-docker compose up -d
+npm run frontend:build
 ```
 
-If your machine uses the older Docker command:
-
-```bash
-docker-compose up -d
-```
-
-4. Start the server:
+6. Run the server:
 
 ```bash
 npm run dev
 ```
 
-The API runs at:
+Base URL:
 
 ```text
-http://localhost:3000
+http://localhost:3000/api
+```
+
+Frontend URL:
+
+```text
+http://localhost:3000/
+```
+
+## Frontend
+
+- The React source lives in `frontend/`.
+- The built frontend is generated into `public/`.
+- The Express server serves the built files from `public/`.
+
+Useful scripts:
+
+```bash
+npm run frontend:dev
+npm run frontend:build
 ```
 
 ## Environment Variables
-
-The default `.env.example` file contains:
 
 ```env
 NODE_ENV=development
@@ -123,29 +88,20 @@ JWT_EXPIRES_IN=1d
 POSTGRES_URL=postgresql://postgres:postgres@localhost:5432/task_management
 MONGODB_URI=mongodb://127.0.0.1:27017/task_management
 ALLOWED_ORIGIN=http://localhost:3000
+REMINDER_LEAD_TIME_MS=3600000
+REMINDER_WEBHOOK_URL=
+ANALYTICS_WEBHOOK_URL=
 ```
 
 Notes:
 
-- The PostgreSQL database itself must already exist.
-- The `users` table is created automatically on startup if it does not exist.
-- `ALLOWED_ORIGIN` is present in the env file for future CORS restriction, but the current app allows all origins.
+- `REMINDER_LEAD_TIME_MS` defaults to 1 hour before the due date.
+- `REMINDER_WEBHOOK_URL` is optional.
+- `ANALYTICS_WEBHOOK_URL` is optional, but should be set to test the completion webhook.
 
-## Available Scripts
+## Authentication
 
-- `npm run dev` starts the app with nodemon
-- `npm start` starts the app normally
-- `npm run check` runs a syntax check on all files in `src`
-
-## API Overview
-
-Base URL:
-
-```text
-http://localhost:3000/api
-```
-
-Protected routes require this header:
+Protected routes require:
 
 ```http
 Authorization: Bearer <jwt_token>
@@ -153,170 +109,106 @@ Authorization: Bearer <jwt_token>
 
 ## Endpoints
 
-| Method | Route | Auth Required | Description |
-| --- | --- | --- | --- |
-| POST | `/api/auth/register` | No | Register a new user |
-| POST | `/api/auth/login` | No | Login and receive a JWT |
-| GET | `/api/auth/me` | Yes | Get the current user |
-| POST | `/api/tasks` | Yes | Create a task |
-| GET | `/api/tasks` | Yes | List all tasks for the logged-in user |
-| GET | `/api/tasks/:taskId` | Yes | Get one task |
-| PATCH | `/api/tasks/:taskId` | Yes | Update one task |
-| DELETE | `/api/tasks/:taskId` | Yes | Delete one task |
+### Auth
 
-## Request and Response Examples
+| Method | Route | Description |
+| --- | --- | --- |
+| `POST` | `/auth/register` | Register a new user |
+| `POST` | `/auth/login` | Login and receive a JWT |
+| `GET` | `/auth/me` | Get the current logged-in user |
 
-### Register User
+### Categories
 
-`POST /api/auth/register`
+| Method | Route | Description |
+| --- | --- | --- |
+| `POST` | `/categories` | Create a category |
+| `GET` | `/categories` | List categories |
+| `GET` | `/categories/:categoryId` | Get one category |
+| `PATCH` | `/categories/:categoryId` | Update a category |
+| `DELETE` | `/categories/:categoryId` | Delete a category |
 
-Request:
+### Tags
 
-```json
-{
-  "email": "user@example.com",
-  "password": "Password123!"
-}
-```
+| Method | Route | Description |
+| --- | --- | --- |
+| `POST` | `/tags` | Create a tag |
+| `GET` | `/tags` | List tags |
+| `GET` | `/tags/:tagId` | Get one tag |
+| `PATCH` | `/tags/:tagId` | Update a tag |
+| `DELETE` | `/tags/:tagId` | Delete a tag |
 
-Response:
+### Tasks
 
-```json
-{
-  "success": true,
-  "data": {
-    "user": {
-      "id": 1,
-      "email": "user@example.com",
-      "createdAt": "2026-04-16T10:00:00.000Z",
-      "updatedAt": "2026-04-16T10:00:00.000Z"
-    }
-  }
-}
-```
+| Method | Route | Description |
+| --- | --- | --- |
+| `POST` | `/tasks` | Create a task |
+| `GET` | `/tasks` | List tasks |
+| `GET` | `/tasks/:taskId` | Get one task |
+| `PATCH` | `/tasks/:taskId` | Update a task |
+| `DELETE` | `/tasks/:taskId` | Delete a task |
 
-### Login User
+## Request Examples
 
-`POST /api/auth/login`
+### Create a Category
 
-Request:
+`POST /categories`
 
 ```json
 {
-  "email": "user@example.com",
-  "password": "Password123!"
+  "name": "Work"
 }
 ```
 
-Response:
+### Create a Tag
+
+`POST /tags`
 
 ```json
 {
-  "success": true,
-  "data": {
-    "token": "<jwt_token>",
-    "user": {
-      "id": 1,
-      "email": "user@example.com",
-      "createdAt": "2026-04-16T10:00:00.000Z",
-      "updatedAt": "2026-04-16T10:00:00.000Z"
-    }
-  }
+  "name": "Urgent"
 }
 ```
 
-### Get Current User
+### Create a Task
 
-`GET /api/auth/me`
-
-Response:
-
-```json
-{
-  "success": true,
-  "data": {
-    "user": {
-      "id": 1,
-      "email": "user@example.com",
-      "createdAt": "2026-04-16T10:00:00.000Z",
-      "updatedAt": "2026-04-16T10:00:00.000Z"
-    }
-  }
-}
-```
-
-### Create Task
-
-`POST /api/tasks`
-
-Request:
+`POST /tasks`
 
 ```json
 {
   "title": "Submit assignment",
-  "description": "Finish backend task",
-  "dueDate": "2026-04-20T10:00:00.000Z",
-  "status": "pending"
+  "description": "Record demo and upload repo link",
+  "dueDate": "2026-04-21T18:00:00.000Z",
+  "status": "pending",
+  "categoryId": "68059c8ef53c6daab915c0d1",
+  "tagIds": [
+    "68059caaf53c6daab915c0d5"
+  ]
 }
 ```
 
-Response:
+### Filter Tasks
 
-```json
-{
-  "success": true,
-  "data": {
-    "task": {
-      "id": "680000000000000000000001",
-      "ownerId": 1,
-      "title": "Submit assignment",
-      "description": "Finish backend task",
-      "dueDate": "2026-04-20T10:00:00.000Z",
-      "status": "pending",
-      "createdAt": "2026-04-16T10:10:00.000Z",
-      "updatedAt": "2026-04-16T10:10:00.000Z"
-    }
-  }
-}
+Filter by category:
+
+```text
+GET /tasks?categoryId=<category_id>
 ```
 
-### List Tasks
+Filter by tags:
 
-`GET /api/tasks`
-
-Response:
-
-```json
-{
-  "success": true,
-  "data": {
-    "tasks": [
-      {
-        "id": "680000000000000000000001",
-        "ownerId": 1,
-        "title": "Submit assignment",
-        "description": "Finish backend task",
-        "dueDate": "2026-04-20T10:00:00.000Z",
-        "status": "pending",
-        "createdAt": "2026-04-16T10:10:00.000Z",
-        "updatedAt": "2026-04-16T10:10:00.000Z"
-      }
-    ]
-  }
-}
+```text
+GET /tasks?tagIds=<tag_id_1>,<tag_id_2>
 ```
 
-### Get One Task
+Filter by category and tags together:
 
-`GET /api/tasks/:taskId`
+```text
+GET /tasks?categoryId=<category_id>&tagIds=<tag_id_1>,<tag_id_2>
+```
 
-Returns the task only if it belongs to the logged-in user.
+### Mark a Task as Completed
 
-### Update Task
-
-`PATCH /api/tasks/:taskId`
-
-Request:
+`PATCH /tasks/:taskId`
 
 ```json
 {
@@ -324,135 +216,86 @@ Request:
 }
 ```
 
-Response:
+## Response Shape
+
+Task responses return populated category and tags:
 
 ```json
 {
-  "success": true,
-  "data": {
-    "task": {
-      "id": "680000000000000000000001",
-      "ownerId": 1,
-      "title": "Submit assignment",
-      "description": "Finish backend task",
-      "dueDate": "2026-04-20T10:00:00.000Z",
-      "status": "completed",
-      "createdAt": "2026-04-16T10:10:00.000Z",
-      "updatedAt": "2026-04-16T10:20:00.000Z"
+  "id": "68059d2df53c6daab915c0db",
+  "ownerId": 1,
+  "title": "Submit assignment",
+  "description": "Record demo and upload repo link",
+  "dueDate": "2026-04-21T18:00:00.000Z",
+  "status": "pending",
+  "completedAt": null,
+  "category": {
+    "id": "68059c8ef53c6daab915c0d1",
+    "name": "Work"
+  },
+  "tags": [
+    {
+      "id": "68059caaf53c6daab915c0d5",
+      "name": "Urgent"
     }
-  }
+  ],
+  "createdAt": "2026-04-21T10:00:00.000Z",
+  "updatedAt": "2026-04-21T10:00:00.000Z"
 }
 ```
 
-### Delete Task
+## Reminder Logic
 
-`DELETE /api/tasks/:taskId`
+- When a pending task is created or updated with a due date, a reminder is scheduled using `setTimeout`.
+- The reminder fires `REMINDER_LEAD_TIME_MS` before the due date.
+- If the due date changes, the old reminder is cancelled and a new one is scheduled.
+- If the task is completed or deleted before the reminder runs, the reminder is cancelled.
+- When the reminder triggers, the app logs the notification to the console.
+- If `REMINDER_WEBHOOK_URL` is set, the same reminder payload is also sent to that webhook.
 
-Response:
-
-```http
-204 No Content
-```
-
-## Validation Rules
-
-### Auth Validation
-
-- `email` must be a valid email address
-- `password` must be at least 8 characters for registration
-
-### Task Validation
-
-- `title` is required when creating a task
-- `title` must be between 3 and 150 characters
-- `description` can be empty, but if provided it must be 2000 characters or less
-- `dueDate` must be a valid ISO date string
-- `status` must be either `pending` or `completed`
-- `PATCH /api/tasks/:taskId` requires at least one field to update
-
-## Error Handling
-
-The API returns JSON errors in this format:
+Example reminder payload:
 
 ```json
 {
-  "success": false,
-  "error": {
-    "message": "Validation failed",
-    "details": [
-      {
-        "message": "\"password\" length must be at least 8 characters long",
-        "path": "password"
-      }
-    ]
-  }
+  "event": "task.reminder",
+  "taskId": "68059d2df53c6daab915c0db",
+  "ownerId": 1,
+  "title": "Submit assignment",
+  "dueDate": "2026-04-21T18:00:00.000Z",
+  "reminderLeadTimeMs": 3600000,
+  "triggeredAt": "2026-04-21T17:00:00.000Z"
 }
 ```
 
-Common cases:
+## Completion Webhook Logic
 
-- `400` for validation errors or invalid task ids
-- `401` for invalid login or missing/invalid token
-- `403` when trying to access another user's task
-- `404` when a route or task does not exist
-- `409` when registering an email that already exists
+- When a task status changes to `completed`, the API sends a POST request to `ANALYTICS_WEBHOOK_URL`.
+- The payload contains task ID, title, completion date, and user ID.
+- If the request fails, it retries 3 times with exponential backoff.
+- The retry delays are `1s`, `2s`, and `4s`.
 
-## Manual Testing Flow
+Example completion webhook payload:
 
-This is a simple demo flow you can use in Postman or any API client:
-
-1. Register a user with `POST /api/auth/register`
-2. Login with `POST /api/auth/login`
-3. Copy the returned JWT token
-4. Call `GET /api/auth/me` with `Authorization: Bearer <token>`
-5. Create a task with `POST /api/tasks`
-6. View tasks with `GET /api/tasks`
-7. Update a task with `PATCH /api/tasks/:taskId`
-8. Delete a task with `DELETE /api/tasks/:taskId`
-9. Login as a different user and try to access the first user's task to show the ownership check
-10. Send an invalid request to show validation and error handling
-
-## Example cURL Commands
-
-### Register
-
-```bash
-curl -X POST http://localhost:3000/api/auth/register \
-  -H "Content-Type: application/json" \
-  -d '{
-    "email": "user@example.com",
-    "password": "Password123!"
-  }'
+```json
+{
+  "taskId": "68059d2df53c6daab915c0db",
+  "title": "Submit assignment",
+  "completionDate": "2026-04-21T17:20:00.000Z",
+  "userId": 1
+}
 ```
 
-### Login
+## Design Choices
+
+- Categories are dynamic and user-specific. This keeps the feature simple and avoids hardcoded seed data.
+- Tags are stored separately so they can be created, listed, updated, deleted, and reused across tasks.
+- Reminders are kept in memory because the assignment allows a simple queue or `setTimeout` based solution.
+- The webhook retry logic is kept simple with fixed retries and exponential backoff.
+
+## Verification
+
+Run:
 
 ```bash
-curl -X POST http://localhost:3000/api/auth/login \
-  -H "Content-Type: application/json" \
-  -d '{
-    "email": "user@example.com",
-    "password": "Password123!"
-  }'
+npm run check
 ```
-
-### Create Task
-
-```bash
-curl -X POST http://localhost:3000/api/tasks \
-  -H "Authorization: Bearer <jwt_token>" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "title": "Demo task",
-    "description": "Testing create task",
-    "dueDate": "2026-04-20T10:00:00.000Z",
-    "status": "pending"
-  }'
-```
-
-## Submission Notes
-
-- The code is intentionally kept simple and readable.
-- Users are stored in PostgreSQL.
-- Tasks are stored in MongoDB.
-- API documentation is included in this README in plain text form.
